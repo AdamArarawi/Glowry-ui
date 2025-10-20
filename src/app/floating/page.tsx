@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   TooltipGroup,
@@ -24,9 +24,22 @@ import {
   DropdownTrigger,
   SubDropdownTrigger,
 } from "./dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectGroupLabel,
+  SelectTrigger,
+  SelectItem,
+} from "./select";
 
 export default function TooltipExample() {
   const [open, setOpen] = React.useState(false);
+  const [value, setValue] = React.useState<string | string[]>([]);
+
+  useEffect(() => {
+    console.log(value);
+  }, [value]);
   return (
     // Use min-h-screen instead of h-screen and remove all padding from this top-level div
     <div className="min-h-screen bg-background">
@@ -190,6 +203,34 @@ export default function TooltipExample() {
             </DropdownHighlight>
           </DropdownContent>
         </Dropdown>
+        <Select value={value} onValueChange={setValue} multiple>
+          <SelectTrigger className="w-[180px]" placeholder="Select a fruit" />
+          <SelectContent>
+            <DropdownHighlight>
+              <SelectGroup>
+                <SelectGroupLabel label="Fruits" />
+                <DropdownHighlightItem>
+                  <SelectItem label="Apple" value="apple" />
+                </DropdownHighlightItem>
+                <DropdownHighlightItem>
+                  <SelectItem label="Banana" value="banana" />
+                </DropdownHighlightItem>
+                <DropdownHighlightItem>
+                  <SelectItem label="Blueberry" value="blueberry" />
+                </DropdownHighlightItem>
+                <DropdownHighlightItem>
+                  <SelectItem label="Orange" value="orange" />
+                </DropdownHighlightItem>
+                <DropdownHighlightItem>
+                  <SelectItem label="Strawberry" value="strawberry" />
+                </DropdownHighlightItem>
+                <DropdownHighlightItem>
+                  <SelectItem label="Watermelon" value="watermelon" />
+                </DropdownHighlightItem>
+              </SelectGroup>
+            </DropdownHighlight>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

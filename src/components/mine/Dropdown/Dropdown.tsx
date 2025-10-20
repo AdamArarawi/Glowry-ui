@@ -79,129 +79,128 @@ interface MenuProps {
 
 type MenuComponentProps = MenuProps & React.HTMLProps<HTMLButtonElement>;
 
-const MenuComponent = React.forwardRef<HTMLButtonElement, MenuComponentProps>(
-  function MenuComponent({ children, ...props }, forwardedRef) {
-    const [isOpen, setIsOpen] = React.useState(false);
-    const [hasFocusInside, setHasFocusInside] = React.useState(false);
-    const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
+function MenuComponent({ children, ...props }: MenuComponentProps) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [hasFocusInside, setHasFocusInside] = React.useState(false);
+  const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
 
-    const elementsRef = React.useRef<Array<HTMLButtonElement | null>>([]);
-    const labelsRef = React.useRef<Array<string | null>>([]);
-    const parent = useOptionalMenuContext();
+  const elementsRef = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const labelsRef = React.useRef<Array<string | null>>([]);
+  const parent = useOptionalMenuContext();
 
-    const tree = useFloatingTree();
-    const nodeId = useFloatingNodeId();
-    const parentId = useFloatingParentNodeId();
-    const item = useListItem();
+  const tree = useFloatingTree();
+  const nodeId = useFloatingNodeId();
+  const parentId = useFloatingParentNodeId();
+  const item = useListItem();
 
-    const isNested = parentId !== null;
+  const isNested = parentId !== null;
 
-    const { floatingStyles, refs, context, placement } =
-      useFloating<HTMLButtonElement>({
-        nodeId,
-        open: isOpen,
-        onOpenChange: setIsOpen,
-        placement: isNested ? "right-start" : "bottom-start",
-        middleware: [
-          offset({
-            mainAxis: isNested ? 0 : 4,
-            alignmentAxis: isNested ? -4 : 0,
-          }),
-          flip({ fallbackAxisSideDirection: "end" }),
-          shift(),
-        ],
-        whileElementsMounted: autoUpdate,
-      });
-
-    const hover = useHover(context, {
-      enabled: isNested,
-      delay: { open: 75 },
-      handleClose: safePolygon({ blockPointerEvents: true }),
-    });
-    const click = useClick(context, {
-      event: "mousedown",
-      toggle: !isNested,
-      ignoreMouse: isNested,
-    });
-    const role = useRole(context, { role: "menu" });
-    const dismiss = useDismiss(context, { bubbles: true });
-    const listNavigation = useListNavigation(context, {
-      listRef: elementsRef,
-      activeIndex,
-      nested: isNested,
-      onNavigate: setActiveIndex,
-    });
-    const typeahead = useTypeahead(context, {
-      listRef: labelsRef,
-      onMatch: isOpen ? setActiveIndex : undefined,
-      activeIndex,
+  const { floatingStyles, refs, context, placement } =
+    useFloating<HTMLButtonElement>({
+      nodeId,
+      open: isOpen,
+      onOpenChange: setIsOpen,
+      placement: isNested ? "right-start" : "bottom-start",
+      middleware: [
+        offset({
+          mainAxis: isNested ? 0 : 4,
+          alignmentAxis: isNested ? -4 : 0,
+        }),
+        flip({ fallbackAxisSideDirection: "end" }),
+        shift(),
+      ],
+      whileElementsMounted: autoUpdate,
     });
 
-    const { getReferenceProps, getFloatingProps, getItemProps } =
-      useInteractions([hover, click, role, dismiss, listNavigation, typeahead]);
+  const hover = useHover(context, {
+    enabled: isNested,
+    delay: { open: 75 },
+    handleClose: safePolygon({ blockPointerEvents: true }),
+  });
+  const click = useClick(context, {
+    event: "mousedown",
+    toggle: !isNested,
+    ignoreMouse: isNested,
+  });
+  const role = useRole(context, { role: "menu" });
+  const dismiss = useDismiss(context, { bubbles: true });
+  const listNavigation = useListNavigation(context, {
+    listRef: elementsRef,
+    activeIndex,
+    nested: isNested,
+    onNavigate: setActiveIndex,
+  });
+  const typeahead = useTypeahead(context, {
+    listRef: labelsRef,
+    onMatch: isOpen ? setActiveIndex : undefined,
+    activeIndex,
+  });
 
-    // Event emitter allows you to communicate across tree components.
-    // This effect closes all menus when an item gets clicked anywhere
-    // in the tree.
-    React.useEffect(() => {
-      if (!tree) return;
+  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions(
+    [hover, click, role, dismiss, listNavigation, typeahead]
+  );
 
-      function handleTreeClick() {
+  // Event emitter allows you to communicate across tree components.
+  // This effect closes all menus when an item gets clicked anywhere
+  // in the tree.
+  React.useEffect(() => {
+    if (!tree) return;
+
+    function handleTreeClick() {
+      setIsOpen(false);
+    }
+
+    function onSubMenuOpen(event: { nodeId: string; parentId: string }) {
+      if (event.nodeId !== nodeId && event.parentId === parentId) {
         setIsOpen(false);
       }
+    }
 
-      function onSubMenuOpen(event: { nodeId: string; parentId: string }) {
-        if (event.nodeId !== nodeId && event.parentId === parentId) {
-          setIsOpen(false);
-        }
-      }
+    tree.events.on("click", handleTreeClick);
+    tree.events.on("menuopen", onSubMenuOpen);
 
-      tree.events.on("click", handleTreeClick);
-      tree.events.on("menuopen", onSubMenuOpen);
+    return () => {
+      tree.events.off("click", handleTreeClick);
+      tree.events.off("menuopen", onSubMenuOpen);
+    };
+  }, [tree, nodeId, parentId]);
 
-      return () => {
-        tree.events.off("click", handleTreeClick);
-        tree.events.off("menuopen", onSubMenuOpen);
-      };
-    }, [tree, nodeId, parentId]);
+  React.useEffect(() => {
+    if (isOpen && tree) {
+      tree.events.emit("menuopen", { parentId, nodeId });
+    }
+  }, [tree, isOpen, nodeId, parentId]);
 
-    React.useEffect(() => {
-      if (isOpen && tree) {
-        tree.events.emit("menuopen", { parentId, nodeId });
-      }
-    }, [tree, isOpen, nodeId, parentId]);
-
-    return (
-      <FloatingNode id={nodeId}>
-        <MenuContext
-          value={{
-            activeIndex,
-            setActiveIndex,
-            getItemProps,
-            setHasFocusInside,
-            isOpen,
-            refs,
-            parent,
-            hasFocusInside,
-            getReferenceProps,
-            item,
-            props,
-            elementsRef,
-            labelsRef,
-            context,
-            isNested,
-            floatingStyles,
-            getFloatingProps,
-            side: placement.split("-")[0] as Side,
-            align: placement.split("-")[1] as Align,
-          }}
-        >
-          {children}
-        </MenuContext>
-      </FloatingNode>
-    );
-  }
-);
+  return (
+    <FloatingNode id={nodeId}>
+      <MenuContext
+        value={{
+          activeIndex,
+          setActiveIndex,
+          getItemProps,
+          setHasFocusInside,
+          isOpen,
+          refs,
+          parent,
+          hasFocusInside,
+          getReferenceProps,
+          item,
+          props,
+          elementsRef,
+          labelsRef,
+          context,
+          isNested,
+          floatingStyles,
+          getFloatingProps,
+          side: placement.split("-")[0] as Side,
+          align: placement.split("-")[1] as Align,
+        }}
+      >
+        {children}
+      </MenuContext>
+    </FloatingNode>
+  );
+}
 
 const MenuTrigger = React.forwardRef<
   HTMLButtonElement,
@@ -316,17 +315,16 @@ function getMotionFromPlacement(side: Side, align: Align) {
   };
 }
 
-const MenuContent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & {
-    motionProps?: {
-      initial?: HTMLMotionProps<"div">["initial"];
-      animate?: HTMLMotionProps<"div">["animate"];
-      exit?: HTMLMotionProps<"div">["exit"];
-      transition?: HTMLMotionProps<"div">["transition"];
-    };
-  }
->(function MenuContent({ children, motionProps, className }, forwardedRef) {
+type MenuContentProps = React.HTMLAttributes<HTMLDivElement> & {
+  motionProps?: {
+    initial?: HTMLMotionProps<"div">["initial"];
+    animate?: HTMLMotionProps<"div">["animate"];
+    exit?: HTMLMotionProps<"div">["exit"];
+    transition?: HTMLMotionProps<"div">["transition"];
+  };
+};
+
+function MenuContent({ children, motionProps, className }: MenuContentProps) {
   const {
     refs,
     isOpen,
@@ -378,13 +376,7 @@ const MenuContent = React.forwardRef<
                   }}
                   {...getFloatingProps()}
                 >
-                  {/* <Highlight
-                    mode="parent"
-                    className="bg-accent/80 rounded-md"
-                    hover
-                  > */}
-                  {children as React.ReactElement | React.ReactElement[]}
-                  {/* </Highlight> */}
+                  {children}
                 </motion.div>
               </div>
             </FloatingFocusManager>
@@ -393,7 +385,7 @@ const MenuContent = React.forwardRef<
       </AnimatePresence>
     </FloatingList>
   );
-});
+}
 
 interface MenuItemProps {
   label: string;
@@ -434,22 +426,19 @@ const MenuItem = React.forwardRef<
   );
 });
 
-const Menu = React.forwardRef<
-  HTMLButtonElement,
-  MenuProps & React.HTMLProps<HTMLButtonElement>
->(function Menu(props, ref) {
+function Menu(props: MenuProps) {
   const parentId = useFloatingParentNodeId();
 
   if (parentId === null) {
     return (
       <FloatingTree>
-        <MenuComponent {...props} ref={ref} />
+        <MenuComponent {...props} />
       </FloatingTree>
     );
   }
 
-  return <MenuComponent {...props} ref={ref} />;
-});
+  return <MenuComponent {...props} />;
+}
 
 type MenuMenuHighlightProps = Omit<
   HighlightProps,
